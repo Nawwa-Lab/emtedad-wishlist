@@ -14,7 +14,11 @@ export class HealthController {
     try {
       await this.dataSource.query('SELECT 1')
       if (!this.rabbitmq.isReady()) throw new Error('RabbitMQ unavailable')
-      return { status: 'ready' }
+      return {
+        status: 'ready',
+        service: 'wishlist-service',
+        timestamp: new Date().toISOString(),
+      }
     } catch {
       throw new ServiceUnavailableException('Wishlist service is not ready')
     }
