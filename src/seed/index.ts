@@ -21,7 +21,11 @@ async function seed() {
     if (db.options.database !== 'emtedad_wishlist')
       throw new Error('Unexpected development database')
     const entities: Record<string, EntityTarget<ObjectLiteral>> = { Wish, WishEndorsement }
+    const mutableFields: Record<string, string[]> = {
+      Wish: ['title', 'normalizedTitle', 'category', 'description', 'impact'],
+    }
     let inserted = 0
+    let updated = 0
     await db.transaction(async (manager) => {
       // Serialize seed processes without affecting ordinary application transactions.
       await manager.query('SELECT pg_advisory_xact_lock(820261025)')
@@ -34,6 +38,16 @@ async function seed() {
           if (!existing) {
             await repository.save(repository.create(row))
             inserted += 1
+          } else {
+            const fields = mutableFields[name] ?? []
+            const changed = fields.some(
+              (field) => JSON.stringify(existing[field]) !== JSON.stringify(row[field]),
+            )
+            if (changed) {
+              for (const field of fields) existing[field] = row[field]
+              await repository.save(existing)
+              updated += 1
+            }
           }
         }
       }
@@ -53,7 +67,9 @@ async function seed() {
     console.log(
       'wishlist: ' +
         inserted +
-        ' fixtures inserted; existing fixtures preserved; references verified',
+        ' fixtures inserted; ' +
+        updated +
+        ' fixture display rows updated; references verified',
     )
   } finally {
     await app.close()
